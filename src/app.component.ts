@@ -25,7 +25,6 @@ interface PlacedSignature {
 
 interface PersistedState {
   fileName: string;
-  pdfData: string;
   signatureDataUrl: string | null;
   trimmedSignatureSize: { width: number; height: number; aspectRatio: number } | null;
   placedSignatures: PlacedSignature[];
@@ -120,6 +119,11 @@ interface PersistedState {
           <button (click)="resetApp()" title="Загрузить новый PDF" class="md:hidden p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors">
             <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0m0 0-3.182-3.182m0-11.667a8.25 8.25 0 0 0-11.667 0M6.168 5.86l-3.182 3.182" />
+            </svg>
+          </button>
+          <button (click)="applyAndDownload()" [disabled]="placedSignatures().length === 0" title="Скачать PDF" class="md:hidden p-2 rounded-full text-emerald-600 hover:bg-emerald-50 disabled:text-gray-400 disabled:hover:bg-transparent transition-colors">
+            <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
           </button>
           <button (click)="openHelpModal()" title="Помощь" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors">
@@ -436,6 +440,9 @@ export class AppComponent {
   @ViewChild('croppingCanvas') croppingCanvas!: ElementRef<HTMLCanvasElement>;
 
   private static readonly STORAGE_KEY = 'pdf-e-sign-state';
+  private static readonly DB_NAME = 'pdf-e-sign';
+  private static readonly DB_VERSION = 1;
+  private static readonly PDF_STORE = 'pdf';
 
   // --- Signals for State Management ---
   fileName = signal<string>('');
@@ -482,7 +489,6 @@ export class AppComponent {
   private cropEndPos: Position | null = null;
   private isDrawingCrop = false;
   private originalImageForCrop: HTMLImageElement | null = null;
-  private persistedPdfData: string | null = null;
   private persistTimeoutId: number | null = null;
   private isRestoringState = true;
   
@@ -527,15 +533,13 @@ export class AppComponent {
       }
 
       const pdf = this.pdfFile();
-      const pdfData = this.persistedPdfData;
-      if (!pdf || !pdfData) {
+      if (!pdf) {
         this.clearPersistedState();
         return;
       }
 
       this.schedulePersistState({
         fileName: this.fileName(),
-        pdfData,
         signatureDataUrl: this.signatureDataUrl(),
         trimmedSignatureSize: this.trimmedSignatureSize(),
         placedSignatures: this.placedSignatures(),
@@ -592,15 +596,14 @@ export class AppComponent {
     try {
       await this.initializePdfJs();
       const arrayBuffer = await file.arrayBuffer();
-      this.persistedPdfData = this.arrayBufferToBase64(arrayBuffer);
+      await this.savePdfData(arrayBuffer);
       const pdf = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       this.pdfDoc.set(pdf);
       this.totalPages.set(pdf.numPages);
       this.currentPage.set(1); // Triggers effect to render page 1
-      if (this.persistedPdfData && !this.isRestoringState) {
+      if (!this.isRestoringState) {
         this.schedulePersistState({
           fileName: this.fileName(),
-          pdfData: this.persistedPdfData,
           signatureDataUrl: this.signatureDataUrl(),
           trimmedSignatureSize: this.trimmedSignatureSize(),
           placedSignatures: this.placedSignatures(),
@@ -1298,7 +1301,6 @@ export class AppComponent {
     this.signatureDataUrl.set(null);
     this.placedSignatures.set([]);
     this.trimmedSignatureSize.set(null);
-    this.persistedPdfData = null;
     this.clearPersistedState();
     this.activeSignatureId.set(null);
     this.isPlacingSignature.set(false);
@@ -1320,7 +1322,6 @@ export class AppComponent {
       try {
         const payload: PersistedState = {
           fileName: state.fileName,
-          pdfData: state.pdfData,
           signatureDataUrl: state.signatureDataUrl,
           trimmedSignatureSize: state.trimmedSignatureSize,
           placedSignatures: state.placedSignatures,
@@ -1345,6 +1346,7 @@ export class AppComponent {
     } catch (error) {
       console.error('Не удалось очистить сохранённое состояние:', error);
     }
+    void this.clearPdfData();
   }
 
   private async restoreState() {
@@ -1359,17 +1361,21 @@ export class AppComponent {
         return;
       }
       const data: PersistedState = JSON.parse(raw);
-      if (!data?.pdfData || !data.fileName) {
+      if (!data?.fileName) {
         this.clearPersistedState();
         this.isRestoringState = false;
         return;
       }
-      this.persistedPdfData = data.pdfData;
       this.signatureDataUrl.set(data.signatureDataUrl ?? null);
       this.trimmedSignatureSize.set(data.trimmedSignatureSize ?? null);
       this.placedSignatures.set(data.placedSignatures ?? []);
       this.fileName.set(data.fileName);
-      const bytes = this.base64ToUint8Array(data.pdfData);
+      const bytes = await this.loadPdfData();
+      if (!bytes) {
+        this.clearPersistedState();
+        this.isRestoringState = false;
+        return;
+      }
       const restoredFile = new File([bytes], data.fileName, { type: 'application/pdf' });
       this.pdfFile.set(restoredFile);
     } catch (error) {
@@ -1379,24 +1385,90 @@ export class AppComponent {
     }
   }
 
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
+  private supportsIndexedDb(): boolean {
+    return typeof window !== 'undefined' && !!window.indexedDB;
   }
 
-  private base64ToUint8Array(base64: string): Uint8Array {
-    const binary = window.atob(base64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
+  private openDatabase(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (!this.supportsIndexedDb()) {
+        reject(new Error('IndexedDB не поддерживается'));
+        return;
+      }
+      const request = window.indexedDB.open(AppComponent.DB_NAME, AppComponent.DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(AppComponent.PDF_STORE)) {
+          db.createObjectStore(AppComponent.PDF_STORE);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error ?? new Error('Не удалось открыть IndexedDB'));
+    });
+  }
+
+  private async savePdfData(buffer: ArrayBuffer) {
+    if (!this.supportsIndexedDb()) return;
+    const db = await this.openDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(AppComponent.PDF_STORE, 'readwrite');
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        const err = tx.error ?? new Error('Не удалось сохранить PDF в IndexedDB');
+        db.close();
+        reject(err);
+      };
+      tx.objectStore(AppComponent.PDF_STORE).put(buffer, 'pdf');
+    });
+  }
+
+  private async loadPdfData(): Promise<ArrayBuffer | null> {
+    if (!this.supportsIndexedDb()) return null;
+    const db = await this.openDatabase();
+    return new Promise<ArrayBuffer | null>((resolve, reject) => {
+      const tx = db.transaction(AppComponent.PDF_STORE, 'readonly');
+      const request = tx.objectStore(AppComponent.PDF_STORE).get('pdf');
+      request.onsuccess = () => {
+        db.close();
+        const result = request.result;
+        if (!result) {
+          resolve(null);
+          return;
+        }
+        if (result instanceof ArrayBuffer) {
+          resolve(result);
+        } else if (result instanceof Blob) {
+          result.arrayBuffer().then(resolve).catch(reject);
+        } else {
+          resolve(null);
+        }
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error ?? new Error('Не удалось прочитать PDF из IndexedDB'));
+      };
+    });
+  }
+
+  private async clearPdfData() {
+    if (!this.supportsIndexedDb()) return;
+    const db = await this.openDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(AppComponent.PDF_STORE, 'readwrite');
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        const err = tx.error ?? new Error('Не удалось очистить PDF в IndexedDB');
+        db.close();
+        reject(err);
+      };
+      tx.objectStore(AppComponent.PDF_STORE).delete('pdf');
+    });
   }
 
   togglePlacementMode() {
