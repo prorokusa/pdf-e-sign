@@ -136,7 +136,7 @@ interface PlacedSignature {
               <canvas #pdfCanvas id="pdf-canvas" class="rounded-lg shadow-xl"></canvas>
               @for (sig of placedSignatures(); track sig.id) {
               @if (sig.page === currentPage()) {
-              <div class="signature-wrapper" [style.left.px]="sig.position.x" [style.top.px]="sig.position.y" [style.width.px]="sig.width" [style.height.px]="sig.height" (mousedown)="dragStart($event, sig)" (touchstart)="dragStart($event, sig)">
+              <div class="signature-wrapper" [class.active]="activeSignatureId() === sig.id" [style.left.px]="sig.position.x" [style.top.px]="sig.position.y" [style.width.px]="sig.width" [style.height.px]="sig.height" (mousedown)="dragStart($event, sig)" (touchstart)="dragStart($event, sig)" (click)="selectSignature(sig, $event)">
                 <img [src]="signatureDataUrl()" alt="Подпись" class="w-full h-full object-contain pointer-events-none">
                 <div class="delete-signature-btn" (click)="deleteSignature(sig.id, $event)" title="Удалить подпись">&times;</div>
                 <div class="resize-handle" (mousedown)="resizeStart($event, sig)" (touchstart)="resizeStart($event, sig)"></div>
@@ -336,7 +336,8 @@ interface PlacedSignature {
       z-index: 10;
       box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     }
-    .signature-wrapper:hover .delete-signature-btn {
+    .signature-wrapper:hover .delete-signature-btn,
+    .signature-wrapper.active .delete-signature-btn {
       opacity: 1;
       transform: scale(1);
     }
@@ -356,24 +357,25 @@ interface PlacedSignature {
       z-index: 10;
       box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     }
-    .signature-wrapper:hover .resize-handle {
+    .signature-wrapper:hover .resize-handle,
+    .signature-wrapper.active .resize-handle {
       opacity: 1;
       transform: scale(1);
     }
     @media (hover: none) and (pointer: coarse) {
-      .signature-wrapper .delete-signature-btn,
-      .signature-wrapper .resize-handle {
+      .signature-wrapper.active .delete-signature-btn,
+      .signature-wrapper.active .resize-handle {
         opacity: 1;
         transform: scale(1);
       }
-      .signature-wrapper .delete-signature-btn {
+      .signature-wrapper.active .delete-signature-btn {
         top: -16px;
         right: -16px;
         width: 32px;
         height: 32px;
         font-size: 18px;
       }
-      .signature-wrapper .resize-handle {
+      .signature-wrapper.active .resize-handle {
         width: 24px;
         height: 24px;
         bottom: -12px;
@@ -407,6 +409,7 @@ export class AppComponent {
   signatureDataUrl = signal<string | null>(null);
   trimmedSignatureSize = signal<{ width: number; height: number; aspectRatio: number } | null>(null);
   placedSignatures = signal<PlacedSignature[]>([]);
+  activeSignatureId = signal<number | null>(null);
 
   isSigning = signal<boolean>(false);
   signatureMode = signal<'draw' | 'upload'>('draw');
@@ -563,12 +566,14 @@ export class AppComponent {
   goToPreviousPage() {
     if (this.currentPage() > 1) {
       this.currentPage.update(p => p - 1);
+      this.activeSignatureId.set(null);
     }
   }
 
   goToNextPage() {
     if (this.currentPage() < this.totalPages()) {
       this.currentPage.update(p => p + 1);
+      this.activeSignatureId.set(null);
     }
   }
 
@@ -773,12 +778,21 @@ export class AppComponent {
         aspectRatio: sizeInfo.aspectRatio,
       };
       this.placedSignatures.update(sigs => [...sigs, newSignature]);
+      this.activeSignatureId.set(newSignature.id);
     }
+  }
+
+  selectSignature(signature: PlacedSignature, event: Event) {
+    event.stopPropagation();
+    this.activeSignatureId.set(signature.id);
   }
 
   deleteSignature(idToDelete: number, event: MouseEvent) {
     event.stopPropagation();
     this.placedSignatures.update(sigs => sigs.filter(s => s.id !== idToDelete));
+    if (this.activeSignatureId() === idToDelete) {
+      this.activeSignatureId.set(null);
+    }
   }
 
   async applyAndDownload() {
@@ -872,6 +886,7 @@ export class AppComponent {
     event.preventDefault();
     event.stopPropagation();
     const eventPos = this.getClientCoords(event);
+    this.activeSignatureId.set(signature.id);
     this.draggedSignature.set({ signature, startPos: { ...signature.position }, eventStartPos: eventPos });
   }
 
@@ -880,6 +895,7 @@ export class AppComponent {
     event.preventDefault();
     event.stopPropagation();
     const eventPos = this.getClientCoords(event);
+    this.activeSignatureId.set(signature.id);
     this.resizingSignature.set({ signature, startSize: { width: signature.width, height: signature.height }, eventStartPos: eventPos });
   }
 
@@ -1175,12 +1191,19 @@ export class AppComponent {
     this.signatureDataUrl.set(null);
     this.placedSignatures.set([]);
     this.trimmedSignatureSize.set(null);
+    this.activeSignatureId.set(null);
     this.isPlacingSignature.set(false);
   }
 
   togglePlacementMode() {
     if (this.signatureDataUrl()) {
-      this.isPlacingSignature.update(v => !v);
+      this.isPlacingSignature.update(v => {
+        const next = !v;
+        if (next) {
+          this.activeSignatureId.set(null);
+        }
+        return next;
+      });
     }
   }
 }
