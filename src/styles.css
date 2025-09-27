@@ -1,0 +1,64 @@
+/* Custom styles to ensure canvas responsiveness */
+#pdf-canvas {
+  width: 100%;
+  height: auto;
+}
+.signature-wrapper {
+    position: absolute;
+    cursor: move;
+    border: 2px dashed transparent;
+    user-select: none;
+    transition: border-color 0.2s ease-in-out;
+}
+.signature-wrapper:hover {
+  border-color: #4f46e5; /* indigo-600 */
+}
+.signature-wrapper img {
+  display: block; /* remove bottom space from inline image */
+}
+.delete-signature-btn {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background-color: #4338ca; /* indigo-700 */
+  color: white;
+  border-radius: 9999px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  transform: scale(0.8);
+  z-index: 10;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+.signature-wrapper:hover .delete-signature-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+.resize-handle {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 16px;
+  height: 16px;
+  background-color: #4338ca; /* indigo-700 */
+  border: 3px solid white;
+  border-radius: 6px;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  transform: scale(0.8);
+  z-index: 10;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+.signature-wrapper:hover .resize-handle {
+  opacity: 1;
+  transform: scale(1);
+}
