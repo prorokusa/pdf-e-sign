@@ -360,6 +360,27 @@ interface PlacedSignature {
       opacity: 1;
       transform: scale(1);
     }
+    @media (hover: none) and (pointer: coarse) {
+      .signature-wrapper .delete-signature-btn,
+      .signature-wrapper .resize-handle {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .signature-wrapper .delete-signature-btn {
+        top: -16px;
+        right: -16px;
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+      }
+      .signature-wrapper .resize-handle {
+        width: 24px;
+        height: 24px;
+        bottom: -12px;
+        right: -12px;
+        border-width: 4px;
+      }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
