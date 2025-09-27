@@ -715,17 +715,9 @@ export class AppComponent {
       const defaultHeight = defaultWidth / sizeInfo.aspectRatio;
 
       const viewer = event.currentTarget as HTMLElement;
-      const scrollParent = viewer.parentElement;
-
-      if (!scrollParent) return;
-
       const rect = viewer.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      
-      // Use the parent's scroll offsets for accurate positioning
-      const finalX = x + scrollParent.scrollLeft;
-      const finalY = y + scrollParent.scrollTop;
+      const finalX = event.clientX - rect.left;
+      const finalY = event.clientY - rect.top;
 
       const newSignature: PlacedSignature = {
         id: Date.now(),
