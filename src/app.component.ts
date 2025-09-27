@@ -917,12 +917,20 @@ export class AppComponent {
       if (!scrollParent) return;
 
       const rect = viewer.getBoundingClientRect();
-      const visualOffsetX = (window.visualViewport?.offsetLeft ?? 0);
-      const visualOffsetY = (window.visualViewport?.offsetTop ?? 0);
-      const pageX = event.pageX ?? (event.clientX + visualOffsetX + window.pageXOffset - (window.visualViewport?.pageLeft ?? 0));
-      const pageY = event.pageY ?? (event.clientY + visualOffsetY + window.pageYOffset - (window.visualViewport?.pageTop ?? 0));
-      const x = pageX - rect.left;
-      const y = pageY - rect.top;
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.maxTouchPoints === undefined;
+      const visualOffsetX = window.visualViewport?.offsetLeft ?? 0;
+      const visualOffsetY = window.visualViewport?.offsetTop ?? 0;
+
+      const clientX = event.clientX ?? (event.pageX ? event.pageX - window.pageXOffset : 0);
+      const clientY = event.clientY ?? (event.pageY ? event.pageY - window.pageYOffset : 0);
+
+      let x = clientX - rect.left;
+      let y = clientY - rect.top;
+
+      if (isTouchDevice) {
+        x += visualOffsetX;
+        y += visualOffsetY;
+      }
 
       // Use the parent's scroll offsets for accurate positioning
       const finalX = x + scrollParent.scrollLeft;
