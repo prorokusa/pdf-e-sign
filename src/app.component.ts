@@ -136,7 +136,7 @@ interface PlacedSignature {
               <canvas #pdfCanvas id="pdf-canvas" class="rounded-lg shadow-xl"></canvas>
               @for (sig of placedSignatures(); track sig.id) {
               @if (sig.page === currentPage()) {
-              <div class="signature-wrapper" [class.active]="activeSignatureId() === sig.id" [style.left.px]="sig.position.x" [style.top.px]="sig.position.y" [style.width.px]="sig.width" [style.height.px]="sig.height" (mousedown)="dragStart($event, sig)" (touchstart)="dragStart($event, sig)" (click)="selectSignature(sig, $event)" (touchend)="selectSignature(sig, $event)">
+              <div class="signature-wrapper" [class.active]="activeSignatureId() === sig.id" [style.left.px]="sig.position.x" [style.top.px]="sig.position.y" [style.width.px]="sig.width" [style.height.px]="sig.height" (mousedown)="dragStart($event, sig)" (touchstart)="dragStart($event, sig)" (click)="selectSignature(sig, $event)">
                 <img [src]="signatureDataUrl()" alt="Подпись" class="w-full h-full object-contain pointer-events-none">
                 <div class="delete-signature-btn" (click)="deleteSignature(sig.id, $event)" (touchstart)="deleteSignature(sig.id, $event)" title="Удалить подпись">&times;</div>
                 <div class="resize-handle" (mousedown)="resizeStart($event, sig)" (touchstart)="resizeStart($event, sig)"></div>
@@ -896,6 +896,13 @@ export class AppComponent {
   }
 
   dragStart(event: MouseEvent | TouchEvent, signature: PlacedSignature) {
+    const isTouch = 'touches' in event;
+    if (isTouch && this.activeSignatureId() !== signature.id) {
+      this.activeSignatureId.set(signature.id);
+      event.stopPropagation();
+      return;
+    }
+
     this.interactionOccurred = true;
     event.preventDefault();
     event.stopPropagation();
@@ -905,6 +912,13 @@ export class AppComponent {
   }
 
   resizeStart(event: MouseEvent | TouchEvent, signature: PlacedSignature) {
+    const isTouch = 'touches' in event;
+    if (isTouch && this.activeSignatureId() !== signature.id) {
+      this.activeSignatureId.set(signature.id);
+      event.stopPropagation();
+      return;
+    }
+
     this.interactionOccurred = true;
     event.preventDefault();
     event.stopPropagation();
