@@ -1,4 +1,3 @@
-
 import {
   Component,
   ChangeDetectionStrategy,
@@ -168,10 +167,10 @@ interface PlacedSignature {
 
 @if (isSigning()) {
 <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity" (click)="closeSignatureModal()">
-  <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 overflow-hidden" (click)="$event.stopPropagation()">
-    <div class="flex flex-col md:flex-row">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 overflow-hidden h-[85vh] md:h-auto" (click)="$event.stopPropagation()">
+    <div class="flex flex-col md:flex-row h-full">
       <!-- Drawing Area -->
-      <div class="flex-grow p-6 flex flex-col">
+      <div class="flex-grow p-4 sm:p-6 flex flex-col min-h-0">
         <h3 class="text-xl font-semibold text-gray-800 mb-4">Создайте вашу подпись</h3>
         <!-- Tabs -->
         <div class="flex border-b border-gray-200 mb-4">
@@ -184,11 +183,8 @@ interface PlacedSignature {
         </div>
 
         @if(signatureMode() === 'draw') {
-        <div class="relative bg-gray-100 rounded-lg flex-grow w-full min-h-[256px]">
-          <canvas #signatureCanvas class="w-full h-full rounded-lg touch-none"></canvas>
-        </div>
-        <div class="flex justify-start items-center mt-4">
-          <button (click)="clearSignature()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">Очистить</button>
+        <div class="relative bg-gray-100 rounded-lg flex-grow w-full">
+          <canvas #signatureCanvas class="absolute top-0 left-0 w-full h-full rounded-lg touch-none"></canvas>
         </div>
         }
         @if(signatureMode() === 'upload') {
@@ -207,35 +203,37 @@ interface PlacedSignature {
 
       <!-- Settings & Actions Panel -->
       @if(signatureMode() === 'draw') {
-      <div class="w-full md:w-64 flex-shrink-0 bg-gray-50 md:border-l border-t md:border-t-0 border-gray-200 p-6 flex flex-col space-y-8">
-        <h4 class="text-base font-semibold text-gray-800">Настройки кисти</h4>
+      <div class="w-full md:w-72 flex-shrink-0 bg-gray-50 md:border-l border-t md:border-t-0 border-gray-200 p-4 sm:p-6 flex flex-col">
+        <div class="flex-1 space-y-6">
+          <h4 class="text-base font-semibold text-gray-800">Настройки кисти</h4>
 
-        <!-- Thickness -->
-        <div>
-          <label for="pen-thickness" class="block text-sm font-medium text-gray-700 mb-2">Толщина: {{ penThickness().toFixed(1) }}</label>
-          <input id="pen-thickness" type="range" [value]="penThickness()" (input)="setPenThickness($event)" min="0.5" max="5" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-        </div>
+          <!-- Thickness -->
+          <div>
+            <label for="pen-thickness" class="block text-sm font-medium text-gray-700 mb-2">Толщина: {{ penThickness().toFixed(1) }}</label>
+            <input id="pen-thickness" type="range" [value]="penThickness()" (input)="setPenThickness($event)" min="0.5" max="5" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+          </div>
 
-        <!-- Color -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
-          <div class="flex items-center justify-between">
-            @for(color of availablePenColors; track color) {
-            <button (click)="setPenColor(color)" class="w-10 h-10 rounded-full ring-offset-2 ring-indigo-500 transition-all flex items-center justify-center" [class.ring-2]="penColor() === color" [style.backgroundColor]="color">
-              @if (penColor() === color) {
-              <svg class="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-              </svg>
+          <!-- Color -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
+            <div class="flex items-center justify-between">
+              @for(color of availablePenColors; track color) {
+              <button (click)="setPenColor(color)" class="w-10 h-10 rounded-full ring-offset-2 ring-indigo-500 transition-all flex items-center justify-center" [class.ring-2]="penColor() === color" [style.backgroundColor]="color">
+                @if (penColor() === color) {
+                <svg class="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                }
+              </button>
               }
-            </button>
-            }
+            </div>
           </div>
         </div>
-
-        <div class="flex-grow"></div>
-
-        <!-- Save Button -->
-        <button (click)="saveSignature()" class="w-full px-4 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">Сохранить подпись</button>
+        
+        <div class="space-y-3 mt-6">
+          <button (click)="clearSignature()" class="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">Очистить</button>
+          <button (click)="saveSignature()" class="w-full px-4 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">Сохранить подпись</button>
+        </div>
       </div>
       }
     </div>
@@ -253,7 +251,7 @@ interface PlacedSignature {
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 p-6 text-center">
     <h3 class="text-xl font-medium leading-6 text-gray-900 mb-2">Обрежьте изображение</h3>
     <p class="text-sm text-gray-500 mb-4">Выделите мышью область, содержащую только вашу подпись.</p>
-    <div class="w-full h-64 md:h-80 bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
+    <div class="w-full h-64 md:h-80 bg-gray-200 rounded-lg overflow-hidden flex items-centerjustify-center">
       <canvas #croppingCanvas class="touch-none" (mousedown)="onCropMouseDown($event)" (touchstart)="onCropMouseDown($event)" (mousemove)="onCropMouseMove($event)" (touchmove)="onCropMouseMove($event)" (mouseup)="onCropMouseUp($event)" (touchend)="onCropMouseUp($event)" (mouseleave)="onCropMouseUp($event)"></canvas>
     </div>
     <div class="flex justify-end space-x-3 mt-6">
@@ -366,7 +364,6 @@ interface PlacedSignature {
     '(window:touchmove)': 'onDrag($event)',
     '(window:mouseup)': 'onEndInteraction($event)',
     '(window:touchend)': 'onEndInteraction($event)',
-    '(window:resize)': 'onWindowResize()',
   },
 })
 export class AppComponent {
@@ -434,12 +431,6 @@ export class AppComponent {
     effect(() => {
       if (this.isCropping() && this.croppingImageUrl()) {
         setTimeout(() => this.initCroppingCanvas(), 0);
-      }
-    });
-
-    effect(() => {
-      if (this.isSigning() && this.signatureMode() === 'draw') {
-        this.scheduleSignaturePadInit(true);
       }
     });
 
@@ -559,79 +550,46 @@ export class AppComponent {
 
   openSignatureModal() {
     this.isSigning.set(true);
-    this.scheduleSignaturePadInit(false);
+    setTimeout(() => this.initSignaturePad(), 0);
   }
   
   closeSignatureModal() {
     this.isSigning.set(false);
-    if (this.signaturePad?.off) {
-      this.signaturePad.off();
-    }
     this.signaturePad = null;
   }
 
-  private scheduleSignaturePadInit(preserveExisting: boolean, attempt = 0) {
-    if (!this.isSigning() || this.signatureMode() !== 'draw') return;
-    requestAnimationFrame(() => {
-      const initialized = this.initSignaturePad(preserveExisting);
-      if (!initialized && attempt < 5) {
-        this.scheduleSignaturePadInit(preserveExisting, attempt + 1);
-      }
-    });
-  }
+  initSignaturePad() {
+    if (this.signatureCanvas && this.signatureMode() === 'draw') {
+        const canvas = this.signatureCanvas.nativeElement;
+        // Use a timeout to ensure the modal animation is complete and dimensions are stable.
+        setTimeout(() => {
+            const parent = canvas.parentElement;
+            if (!parent) return;
 
-  private initSignaturePad(preserveExisting: boolean): boolean {
-    if (!this.signatureCanvas || this.signatureMode() !== 'draw') return false;
+            const rect = parent.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) {
+                console.warn("Signature canvas parent has no dimensions.");
+                return;
+            }
+            
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = rect.width * ratio;
+            canvas.height = rect.height * ratio;
+            canvas.getContext('2d')?.scale(ratio, ratio);
 
-    const canvas = this.signatureCanvas.nativeElement;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-      return false;
-    }
-
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const existingData = preserveExisting && this.signaturePad ? this.signaturePad.toData() : [];
-
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    canvas.width = rect.width * ratio;
-    canvas.height = rect.height * ratio;
-
-    const context = canvas.getContext('2d');
-    if (!context) {
-      return false;
-    }
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.scale(ratio, ratio);
-
-    if (this.signaturePad?.off) {
-      this.signaturePad.off();
-    }
-    this.signaturePad = new (window as any).SignaturePad(canvas, {
-      penColor: this.penColor(),
-      minWidth: 0.25,
-      maxWidth: this.penThickness(),
-    });
-
-    if (existingData && existingData.length) {
-      try {
-        this.signaturePad.fromData(existingData);
-      } catch (error) {
-        console.warn('Не удалось восстановить подпись после ресайза', error);
-      }
-    }
-
-    return true;
-  }
-
-  onWindowResize() {
-    if (this.isSigning() && this.signatureMode() === 'draw') {
-      this.scheduleSignaturePadInit(true);
+            this.signaturePad = new (window as any).SignaturePad(canvas, {
+                penColor: this.penColor(),
+                minWidth: 0.5,
+                maxWidth: this.penThickness(),
+            });
+        }, 100); // 100ms should be safe for animations to finish.
     }
   }
 
   clearSignature() {
-    this.signaturePad?.clear();
+    if (this.signaturePad) {
+      this.signaturePad.clear();
+    }
   }
 
   async saveSignature() {
@@ -770,9 +728,17 @@ export class AppComponent {
       const defaultHeight = defaultWidth / sizeInfo.aspectRatio;
 
       const viewer = event.currentTarget as HTMLElement;
+      const scrollParent = viewer.parentElement;
+
+      if (!scrollParent) return;
+
       const rect = viewer.getBoundingClientRect();
-      const finalX = event.clientX - rect.left;
-      const finalY = event.clientY - rect.top;
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      // Use the parent's scroll offsets for accurate positioning
+      const finalX = x + scrollParent.scrollLeft;
+      const finalY = y + scrollParent.scrollTop;
 
       const newSignature: PlacedSignature = {
         id: Date.now(),
