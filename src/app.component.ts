@@ -737,20 +737,33 @@ export class AppComponent {
       this.signaturePad?.off?.();
       const existingData = preserveExisting ? this.signaturePadData : [];
 
-      this.signaturePad = new (window as any).SignaturePad(canvas, {
+      const pad = new (window as any).SignaturePad(canvas, {
         penColor: this.penColor(),
-        minWidth: 0.5,
+        minWidth: this.penThickness(),
         maxWidth: this.penThickness(),
       });
+      pad.penColor = this.penColor();
+      pad.minWidth = this.penThickness();
+      pad.maxWidth = this.penThickness();
 
-      this.signaturePad.onEnd = () => {
+      pad.onEnd = () => {
         try {
-          this.signaturePadData = this.signaturePad?.toData() ?? [];
+          this.signaturePadData = pad.toData();
         } catch (error) {
           console.warn('Не удалось сохранить данные подписи после рисования', error);
           this.signaturePadData = [];
         }
       };
+
+      pad.onBegin = () => {
+        const color = this.penColor();
+        const width = this.penThickness();
+        pad.penColor = color;
+        pad.minWidth = width;
+        pad.maxWidth = width;
+      };
+
+      this.signaturePad = pad;
 
       if (preserveExisting && existingData && existingData.length) {
         try {
@@ -760,6 +773,7 @@ export class AppComponent {
         }
       } else if (!preserveExisting) {
         this.signaturePadData = [];
+        this.signaturePad.clear();
       }
     }, 100);
   }
