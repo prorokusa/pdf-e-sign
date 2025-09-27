@@ -170,25 +170,25 @@ interface PlacedSignature {
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 overflow-hidden h-[85vh] md:h-auto" (click)="$event.stopPropagation()">
     <div class="flex flex-col md:flex-row h-full">
       <!-- Drawing Area -->
-      <div class="flex-grow p-4 sm:p-6 flex flex-col min-h-0">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">Создайте вашу подпись</h3>
+      <div class="flex-grow p-3 sm:p-6 flex flex-col gap-3 sm:gap-4 min-h-0">
+        <h3 class="text-base sm:text-xl font-semibold text-gray-800">Создайте вашу подпись</h3>
         <!-- Tabs -->
-        <div class="flex border-b border-gray-200 mb-4">
-          <button (click)="signatureMode.set('draw')" [class]="signatureMode() === 'draw' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm transition-colors">
+        <div class="flex border-b border-gray-200">
+          <button (click)="signatureMode.set('draw')" [class]="signatureMode() === 'draw' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="flex-1 py-2 sm:py-3 px-1 text-center border-b-2 font-medium text-xs sm:text-sm transition-colors">
             Нарисовать
           </button>
-          <button (click)="signatureMode.set('upload')" [class]="signatureMode() === 'upload' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm transition-colors">
+          <button (click)="signatureMode.set('upload')" [class]="signatureMode() === 'upload' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" class="flex-1 py-2 sm:py-3 px-1 text-center border-b-2 font-medium text-xs sm:text-sm transition-colors">
             Загрузить
           </button>
         </div>
 
         @if(signatureMode() === 'draw') {
-        <div class="relative bg-gray-100 rounded-lg flex-grow w-full">
+        <div class="relative bg-gray-100 rounded-lg flex-grow w-full min-h-[240px] sm:min-h-[320px]">
           <canvas #signatureCanvas class="absolute top-0 left-0 w-full h-full rounded-lg touch-none"></canvas>
         </div>
         }
         @if(signatureMode() === 'upload') {
-        <div class="relative bg-gray-100 rounded-lg flex-grow w-full min-h-[256px]">
+        <div class="relative bg-gray-100 rounded-lg flex-grow w-full min-h-[220px] sm:min-h-[256px]">
           <label for="upload-signature-image" class="flex flex-col items-center justify-center w-full h-full p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-200 cursor-pointer">
             <svg class="w-12 h-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
@@ -203,24 +203,24 @@ interface PlacedSignature {
 
       <!-- Settings & Actions Panel -->
       @if(signatureMode() === 'draw') {
-      <div class="w-full md:w-72 flex-shrink-0 bg-gray-50 md:border-l border-t md:border-t-0 border-gray-200 p-4 sm:p-6 flex flex-col">
-        <div class="flex-1 space-y-6">
-          <h4 class="text-base font-semibold text-gray-800">Настройки кисти</h4>
+      <div class="w-full md:w-64 flex-shrink-0 bg-gray-50 md:border-l border-t md:border-t-0 border-gray-200 p-3 sm:p-6 flex flex-col">
+        <div class="flex-1 space-y-4 sm:space-y-6">
+          <h4 class="text-sm sm:text-base font-semibold text-gray-800">Настройки кисти</h4>
 
           <!-- Thickness -->
           <div>
-            <label for="pen-thickness" class="block text-sm font-medium text-gray-700 mb-2">Толщина: {{ penThickness().toFixed(1) }}</label>
-            <input id="pen-thickness" type="range" [value]="penThickness()" (input)="setPenThickness($event)" min="0.5" max="5" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+            <label for="pen-thickness" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Толщина: {{ penThickness().toFixed(1) }}</label>
+            <input id="pen-thickness" type="range" [value]="penThickness()" (input)="setPenThickness($event)" min="0.5" max="5" step="0.1" class="w-full h-2 sm:h-2.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
           </div>
 
           <!-- Color -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
-            <div class="flex items-center justify-between">
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Цвет</label>
+            <div class="flex items-center justify-between gap-2">
               @for(color of availablePenColors; track color) {
-              <button (click)="setPenColor(color)" class="w-10 h-10 rounded-full ring-offset-2 ring-indigo-500 transition-all flex items-center justify-center" [class.ring-2]="penColor() === color" [style.backgroundColor]="color">
+              <button (click)="setPenColor(color)" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full ring-offset-2 ring-indigo-500 transition-all flex items-center justify-center" [class.ring-2]="penColor() === color" [style.backgroundColor]="color">
                 @if (penColor() === color) {
-                <svg class="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
+                <svg class="w-4 h-4 sm:w-6 sm:h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                 </svg>
                 }
@@ -230,9 +230,9 @@ interface PlacedSignature {
           </div>
         </div>
         
-        <div class="space-y-3 mt-6">
-          <button (click)="clearSignature()" class="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">Очистить</button>
-          <button (click)="saveSignature()" class="w-full px-4 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">Сохранить подпись</button>
+        <div class="space-y-2.5 sm:space-y-3 mt-4 sm:mt-6">
+          <button (click)="clearSignature()" class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">Очистить</button>
+          <button (click)="saveSignature()" class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">Сохранить подпись</button>
         </div>
       </div>
       }
