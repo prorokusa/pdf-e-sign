@@ -443,6 +443,7 @@ export class AppComponent {
   private static readonly DB_NAME = 'pdf-e-sign';
   private static readonly DB_VERSION = 1;
   private static readonly PDF_STORE = 'pdf';
+  private static readonly PDF_BASE64_KEY = 'pdf-e-sign-data';
 
   // --- Signals for State Management ---
   fileName = signal<string>('');
@@ -491,6 +492,7 @@ export class AppComponent {
   private originalImageForCrop: HTMLImageElement | null = null;
   private persistTimeoutId: number | null = null;
   private isRestoringState = true;
+  private signaturePadData: any[] = [];
   
   // --- PDF.js Configuration ---
   private static pdfJsInitPromise: Promise<void> | null = null;
@@ -524,6 +526,26 @@ export class AppComponent {
       const doc = this.pdfDoc();
       if (pageNum && doc) {
         this.renderCurrentPage();
+      }
+    });
+
+    effect(() => {
+      const signing = this.isSigning();
+      const mode = this.signatureMode();
+      if (!signing) {
+        return;
+      }
+      if (mode === 'draw') {
+        setTimeout(() => this.initSignaturePad(true), 0);
+      } else if (this.signaturePad) {
+        try {
+          this.signaturePadData = this.signaturePad.toData();
+        } catch (error) {
+          console.warn('Не удалось сохранить данные подписи при переключении режима', error);
+          this.signaturePadData = [];
+        }
+        this.signaturePad.off?.();
+        this.signaturePad = null;
       }
     });
 
@@ -665,45 +687,87 @@ export class AppComponent {
 
   openSignatureModal() {
     this.isSigning.set(true);
-    setTimeout(() => this.initSignaturePad(), 0);
+    setTimeout(() => this.initSignaturePad(true), 0);
   }
   
   closeSignatureModal() {
     this.isSigning.set(false);
+    if (this.signaturePad) {
+      try {
+        this.signaturePadData = this.signaturePad.toData();
+      } catch (error) {
+        console.warn('Не удалось сохранить данные подписи при закрытии окна', error);
+        this.signaturePadData = [];
+      }
+      this.signaturePad.off?.();
+    }
     this.signaturePad = null;
   }
 
-  initSignaturePad() {
-    if (this.signatureCanvas && this.signatureMode() === 'draw') {
-        const canvas = this.signatureCanvas.nativeElement;
-        // Use a timeout to ensure the modal animation is complete and dimensions are stable.
-        setTimeout(() => {
-            const parent = canvas.parentElement;
-            if (!parent) return;
-
-            const rect = parent.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) {
-                console.warn("Signature canvas parent has no dimensions.");
-                return;
-            }
-            
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = rect.width * ratio;
-            canvas.height = rect.height * ratio;
-            canvas.getContext('2d')?.scale(ratio, ratio);
-
-            this.signaturePad = new (window as any).SignaturePad(canvas, {
-                penColor: this.penColor(),
-                minWidth: 0.5,
-                maxWidth: this.penThickness(),
-            });
-        }, 100); // 100ms should be safe for animations to finish.
+  initSignaturePad(preserveExisting = false) {
+    if (!this.signatureCanvas || this.signatureMode() !== 'draw') {
+      return;
     }
+    const canvas = this.signatureCanvas.nativeElement;
+    setTimeout(() => {
+      const parent = canvas.parentElement;
+      if (!parent || this.signatureMode() !== 'draw') {
+        return;
+      }
+      const rect = parent.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn('Signature canvas parent has no dimensions.');
+        return;
+      }
+
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const context = canvas.getContext('2d');
+      if (!context) {
+        console.error('Failed to get 2D context from signature canvas.');
+        return;
+      }
+
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      canvas.width = rect.width * ratio;
+      canvas.height = rect.height * ratio;
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.scale(ratio, ratio);
+
+      this.signaturePad?.off?.();
+      const existingData = preserveExisting ? this.signaturePadData : [];
+
+      this.signaturePad = new (window as any).SignaturePad(canvas, {
+        penColor: this.penColor(),
+        minWidth: 0.5,
+        maxWidth: this.penThickness(),
+      });
+
+      this.signaturePad.onEnd = () => {
+        try {
+          this.signaturePadData = this.signaturePad?.toData() ?? [];
+        } catch (error) {
+          console.warn('Не удалось сохранить данные подписи после рисования', error);
+          this.signaturePadData = [];
+        }
+      };
+
+      if (preserveExisting && existingData && existingData.length) {
+        try {
+          this.signaturePad.fromData(existingData);
+        } catch (error) {
+          console.warn('Не удалось восстановить данные подписи', error);
+        }
+      } else if (!preserveExisting) {
+        this.signaturePadData = [];
+      }
+    }, 100);
   }
 
   clearSignature() {
     if (this.signaturePad) {
       this.signaturePad.clear();
+      this.signaturePadData = [];
     }
   }
 
@@ -1302,6 +1366,7 @@ export class AppComponent {
     this.placedSignatures.set([]);
     this.trimmedSignatureSize.set(null);
     this.clearPersistedState();
+    this.signaturePadData = [];
     this.activeSignatureId.set(null);
     this.isPlacingSignature.set(false);
     this.isSigning.set(false);
@@ -1408,7 +1473,15 @@ export class AppComponent {
   }
 
   private async savePdfData(buffer: ArrayBuffer) {
-    if (!this.supportsIndexedDb()) return;
+    if (!this.supportsIndexedDb()) {
+      try {
+        const base64 = this.arrayBufferToBase64(buffer);
+        window.localStorage.setItem(AppComponent.PDF_BASE64_KEY, base64);
+      } catch (error) {
+        console.error('Не удалось сохранить PDF в localStorage', error);
+      }
+      return;
+    }
     const db = await this.openDatabase();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(AppComponent.PDF_STORE, 'readwrite');
@@ -1423,10 +1496,26 @@ export class AppComponent {
       };
       tx.objectStore(AppComponent.PDF_STORE).put(buffer, 'pdf');
     });
+    try {
+      window.localStorage.removeItem(AppComponent.PDF_BASE64_KEY);
+    } catch (error) {
+      console.warn('Не удалось удалить резервный PDF из localStorage', error);
+    }
   }
 
   private async loadPdfData(): Promise<ArrayBuffer | null> {
-    if (!this.supportsIndexedDb()) return null;
+    if (!this.supportsIndexedDb()) {
+      try {
+        const base64 = window.localStorage.getItem(AppComponent.PDF_BASE64_KEY);
+        if (!base64) {
+          return null;
+        }
+        return this.base64ToArrayBuffer(base64);
+      } catch (error) {
+        console.error('Не удалось восстановить PDF из localStorage', error);
+        return null;
+      }
+    }
     const db = await this.openDatabase();
     return new Promise<ArrayBuffer | null>((resolve, reject) => {
       const tx = db.transaction(AppComponent.PDF_STORE, 'readonly');
@@ -1454,7 +1543,14 @@ export class AppComponent {
   }
 
   private async clearPdfData() {
-    if (!this.supportsIndexedDb()) return;
+    if (!this.supportsIndexedDb()) {
+      try {
+        window.localStorage.removeItem(AppComponent.PDF_BASE64_KEY);
+      } catch (error) {
+        console.error('Не удалось удалить PDF из localStorage', error);
+      }
+      return;
+    }
     const db = await this.openDatabase();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(AppComponent.PDF_STORE, 'readwrite');
@@ -1469,6 +1565,31 @@ export class AppComponent {
       };
       tx.objectStore(AppComponent.PDF_STORE).delete('pdf');
     });
+    try {
+      window.localStorage.removeItem(AppComponent.PDF_BASE64_KEY);
+    } catch (error) {
+      console.warn('Не удалось удалить резервный PDF из localStorage', error);
+    }
+  }
+
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  private base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binary = window.atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 
   togglePlacementMode() {
