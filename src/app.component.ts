@@ -515,8 +515,18 @@ export class AppComponent {
     // Effect to update signature pad settings in real-time
     effect(() => {
         if (this.signaturePad) {
-            this.signaturePad.penColor = this.penColor();
-            this.signaturePad.maxWidth = this.penThickness();
+            const color = this.penColor();
+            const width = this.penThickness();
+            const pad: any = this.signaturePad;
+            pad.penColor = color;
+            pad.minWidth = width;
+            pad.maxWidth = width;
+            pad.dotSize = width;
+            if (pad._ctx) {
+                pad._ctx.strokeStyle = color;
+                pad._ctx.fillStyle = color;
+                pad._ctx.lineWidth = width;
+            }
         }
     });
 
@@ -742,12 +752,31 @@ export class AppComponent {
         minWidth: this.penThickness(),
         maxWidth: this.penThickness(),
       });
-      pad.penColor = this.penColor();
-      pad.minWidth = this.penThickness();
-      pad.maxWidth = this.penThickness();
+      const color = this.penColor();
+      const width = this.penThickness();
+      pad.penColor = color;
+      pad.minWidth = width;
+      pad.maxWidth = width;
+      pad.dotSize = width;
+      if (pad._ctx) {
+        pad._ctx.strokeStyle = color;
+        pad._ctx.fillStyle = color;
+        pad._ctx.lineWidth = width;
+      }
 
       pad.onEnd = () => {
         try {
+          const color = this.penColor();
+          const width = this.penThickness();
+          pad.penColor = color;
+          pad.minWidth = width;
+          pad.maxWidth = width;
+          pad.dotSize = width;
+          if (pad._ctx) {
+            pad._ctx.strokeStyle = color;
+            pad._ctx.fillStyle = color;
+            pad._ctx.lineWidth = width;
+          }
           this.signaturePadData = pad.toData();
         } catch (error) {
           console.warn('Не удалось сохранить данные подписи после рисования', error);
@@ -761,6 +790,12 @@ export class AppComponent {
         pad.penColor = color;
         pad.minWidth = width;
         pad.maxWidth = width;
+        pad.dotSize = width;
+        if (pad._ctx) {
+          pad._ctx.strokeStyle = color;
+          pad._ctx.fillStyle = color;
+          pad._ctx.lineWidth = width;
+        }
       };
 
       this.signaturePad = pad;
