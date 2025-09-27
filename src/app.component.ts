@@ -23,6 +23,14 @@ interface PlacedSignature {
   aspectRatio: number;
 }
 
+interface PersistedState {
+  fileName: string;
+  pdfData: string;
+  signatureDataUrl: string | null;
+  trimmedSignatureSize: { width: number; height: number; aspectRatio: number } | null;
+  placedSignatures: PlacedSignature[];
+}
+
 @Component({
   selector: 'app-root',
   template: `
@@ -78,6 +86,12 @@ interface PlacedSignature {
         <!-- Right Group: Actions -->
         <div class="flex items-center gap-2 flex-shrink-0">
           @if(pdfFile()) {
+            <button (click)="resetApp()" title="Загрузить новый PDF" class="hidden md:flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
+              <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0m0 0-3.182-3.182m0-11.667a8.25 8.25 0 0 0-11.667 0M6.168 5.86l-3.182 3.182" />
+              </svg>
+              <span class="hidden lg:inline">Новый PDF</span>
+            </button>
             @if (!signatureDataUrl()) {
               <button (click)="openSignatureModal()" class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 transition-colors">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.26 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"></path></svg>
@@ -98,11 +112,16 @@ interface PlacedSignature {
                  }
                </button>
             }
-             <button (click)="applyAndDownload()" [disabled]="placedSignatures().length === 0" class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md shadow-sm hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+             <button (click)="applyAndDownload()" [disabled]="placedSignatures().length === 0" class="hidden md:flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md shadow-sm hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                <span class="hidden sm:inline">Скачать</span>
              </button>
           }
+          <button (click)="resetApp()" title="Загрузить новый PDF" class="md:hidden p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors">
+            <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0m0 0-3.182-3.182m0-11.667a8.25 8.25 0 0 0-11.667 0M6.168 5.86l-3.182 3.182" />
+            </svg>
+          </button>
           <button (click)="openHelpModal()" title="Помощь" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors">
             <svg class="w-7 h-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
@@ -184,6 +203,21 @@ interface PlacedSignature {
             Загрузить
           </button>
         </div>
+
+        @if(pdfFile()) {
+        <div class="md:hidden flex items-center justify-between gap-2">
+          <button (click)="resetApp()" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
+            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0m0 0-3.182-3.182m0-11.667a8.25 8.25 0 0 0-11.667 0M6.168 5.86l-3.182 3.182" />
+            </svg>
+            <span>Новый PDF</span>
+          </button>
+          <button (click)="applyAndDownload()" [disabled]="placedSignatures().length === 0" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md shadow-sm hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            <span>Скачать</span>
+          </button>
+        </div>
+        }
 
         @if(signatureMode() === 'draw') {
         <div class="relative bg-gray-100 rounded-lg flex-grow w-full min-h-[240px] sm:min-h-[320px]">
@@ -401,6 +435,8 @@ export class AppComponent {
   @ViewChild('signatureCanvas') signatureCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('croppingCanvas') croppingCanvas!: ElementRef<HTMLCanvasElement>;
 
+  private static readonly STORAGE_KEY = 'pdf-e-sign-state';
+
   // --- Signals for State Management ---
   fileName = signal<string>('');
   pdfFile = signal<File | null>(null);
@@ -446,6 +482,9 @@ export class AppComponent {
   private cropEndPos: Position | null = null;
   private isDrawingCrop = false;
   private originalImageForCrop: HTMLImageElement | null = null;
+  private persistedPdfData: string | null = null;
+  private persistTimeoutId: number | null = null;
+  private isRestoringState = true;
   
   // --- PDF.js Configuration ---
   private static pdfJsInitPromise: Promise<void> | null = null;
@@ -481,6 +520,33 @@ export class AppComponent {
         this.renderCurrentPage();
       }
     });
+
+    effect(() => {
+      if (this.isRestoringState) {
+        return;
+      }
+
+      const pdf = this.pdfFile();
+      const pdfData = this.persistedPdfData;
+      if (!pdf || !pdfData) {
+        this.clearPersistedState();
+        return;
+      }
+
+      this.schedulePersistState({
+        fileName: this.fileName(),
+        pdfData,
+        signatureDataUrl: this.signatureDataUrl(),
+        trimmedSignatureSize: this.trimmedSignatureSize(),
+        placedSignatures: this.placedSignatures(),
+      });
+    });
+
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(() => this.restoreState());
+    } else {
+      setTimeout(() => this.restoreState(), 0);
+    }
   }
 
   private initializePdfJs(): Promise<void> {
@@ -526,16 +592,29 @@ export class AppComponent {
     try {
       await this.initializePdfJs();
       const arrayBuffer = await file.arrayBuffer();
+      this.persistedPdfData = this.arrayBufferToBase64(arrayBuffer);
       const pdf = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       this.pdfDoc.set(pdf);
       this.totalPages.set(pdf.numPages);
       this.currentPage.set(1); // Triggers effect to render page 1
+      if (this.persistedPdfData && !this.isRestoringState) {
+        this.schedulePersistState({
+          fileName: this.fileName(),
+          pdfData: this.persistedPdfData,
+          signatureDataUrl: this.signatureDataUrl(),
+          trimmedSignatureSize: this.trimmedSignatureSize(),
+          placedSignatures: this.placedSignatures(),
+        });
+      }
     } catch (error) {
       console.error('Error loading PDF:', error);
       alert('Не удалось загрузить PDF файл.');
       this.resetApp();
     } finally {
       this.isLoading.set(false);
+      if (this.isRestoringState) {
+        this.isRestoringState = false;
+      }
     }
   }
 
@@ -1219,8 +1298,105 @@ export class AppComponent {
     this.signatureDataUrl.set(null);
     this.placedSignatures.set([]);
     this.trimmedSignatureSize.set(null);
+    this.persistedPdfData = null;
+    this.clearPersistedState();
     this.activeSignatureId.set(null);
     this.isPlacingSignature.set(false);
+    this.isSigning.set(false);
+    this.isCropping.set(false);
+    this.croppingImageUrl.set(null);
+    this.signaturePad = null;
+    this.signatureMode.set('draw');
+  }
+
+  private schedulePersistState(state: PersistedState) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (this.persistTimeoutId !== null) {
+      window.clearTimeout(this.persistTimeoutId);
+    }
+    this.persistTimeoutId = window.setTimeout(() => {
+      try {
+        const payload: PersistedState = {
+          fileName: state.fileName,
+          pdfData: state.pdfData,
+          signatureDataUrl: state.signatureDataUrl,
+          trimmedSignatureSize: state.trimmedSignatureSize,
+          placedSignatures: state.placedSignatures,
+        };
+        window.localStorage.setItem(AppComponent.STORAGE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.error('Не удалось сохранить состояние:', error);
+      }
+    }, 200);
+  }
+
+  private clearPersistedState() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (this.persistTimeoutId !== null) {
+      window.clearTimeout(this.persistTimeoutId);
+      this.persistTimeoutId = null;
+    }
+    try {
+      window.localStorage.removeItem(AppComponent.STORAGE_KEY);
+    } catch (error) {
+      console.error('Не удалось очистить сохранённое состояние:', error);
+    }
+  }
+
+  private async restoreState() {
+    if (typeof window === 'undefined') {
+      this.isRestoringState = false;
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(AppComponent.STORAGE_KEY);
+      if (!raw) {
+        this.isRestoringState = false;
+        return;
+      }
+      const data: PersistedState = JSON.parse(raw);
+      if (!data?.pdfData || !data.fileName) {
+        this.clearPersistedState();
+        this.isRestoringState = false;
+        return;
+      }
+      this.persistedPdfData = data.pdfData;
+      this.signatureDataUrl.set(data.signatureDataUrl ?? null);
+      this.trimmedSignatureSize.set(data.trimmedSignatureSize ?? null);
+      this.placedSignatures.set(data.placedSignatures ?? []);
+      this.fileName.set(data.fileName);
+      const bytes = this.base64ToUint8Array(data.pdfData);
+      const restoredFile = new File([bytes], data.fileName, { type: 'application/pdf' });
+      this.pdfFile.set(restoredFile);
+    } catch (error) {
+      console.error('Не удалось восстановить состояние:', error);
+      this.clearPersistedState();
+      this.isRestoringState = false;
+    }
+  }
+
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  private base64ToUint8Array(base64: string): Uint8Array {
+    const binary = window.atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
   }
 
   togglePlacementMode() {
