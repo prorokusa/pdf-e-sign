@@ -918,16 +918,22 @@ export class AppComponent {
 
       const rect = viewer.getBoundingClientRect();
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.maxTouchPoints === undefined;
+      const isTablet = isTouchDevice && window.innerWidth >= 768;
       const visualOffsetX = window.visualViewport?.offsetLeft ?? 0;
       const visualOffsetY = window.visualViewport?.offsetTop ?? 0;
 
-      const clientX = event.clientX ?? (event.pageX ? event.pageX - window.pageXOffset : 0);
-      const clientY = event.clientY ?? (event.pageY ? event.pageY - window.pageYOffset : 0);
+      const baseX = event.pageX ?? (event.clientX + window.pageXOffset);
+      const baseY = event.pageY ?? (event.clientY + window.pageYOffset);
 
-      let x = clientX - rect.left;
-      let y = clientY - rect.top;
+      let x = baseX - rect.left;
+      let y = baseY - rect.top;
 
-      if (isTouchDevice) {
+      if (isTablet) {
+        const layoutOffsetLeft = rect.left + window.pageXOffset;
+        const layoutOffsetTop = rect.top + window.pageYOffset;
+        x = baseX - layoutOffsetLeft;
+        y = baseY - layoutOffsetTop;
+      } else if (!isTouchDevice) {
         x += visualOffsetX;
         y += visualOffsetY;
       }
