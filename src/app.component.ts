@@ -136,9 +136,9 @@ interface PlacedSignature {
               <canvas #pdfCanvas id="pdf-canvas" class="rounded-lg shadow-xl"></canvas>
               @for (sig of placedSignatures(); track sig.id) {
               @if (sig.page === currentPage()) {
-              <div class="signature-wrapper" [class.active]="activeSignatureId() === sig.id" [style.left.px]="sig.position.x" [style.top.px]="sig.position.y" [style.width.px]="sig.width" [style.height.px]="sig.height" (mousedown)="dragStart($event, sig)" (touchstart)="dragStart($event, sig)" (click)="selectSignature(sig, $event)">
+              <div class="signature-wrapper" [class.active]="activeSignatureId() === sig.id" [style.left.px]="sig.position.x" [style.top.px]="sig.position.y" [style.width.px]="sig.width" [style.height.px]="sig.height" (mousedown)="dragStart($event, sig)" (touchstart)="dragStart($event, sig)" (click)="selectSignature(sig, $event)" (touchend)="selectSignature(sig, $event)">
                 <img [src]="signatureDataUrl()" alt="Подпись" class="w-full h-full object-contain pointer-events-none">
-                <div class="delete-signature-btn" (click)="deleteSignature(sig.id, $event)" title="Удалить подпись">&times;</div>
+                <div class="delete-signature-btn" (click)="deleteSignature(sig.id, $event)" (touchstart)="deleteSignature(sig.id, $event)" title="Удалить подпись">&times;</div>
                 <div class="resize-handle" (mousedown)="resizeStart($event, sig)" (touchstart)="resizeStart($event, sig)"></div>
               </div>
               }
@@ -310,6 +310,10 @@ interface PlacedSignature {
     }
     .signature-wrapper:hover {
       border-color: #4f46e5; /* indigo-600 */
+    }
+    .signature-wrapper.active {
+      border-color: #4f46e5; /* indigo-600 */
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
     }
     .signature-wrapper img {
       display: block; /* remove bottom space from inline image */
@@ -746,8 +750,13 @@ export class AppComponent {
   }
 
   placeSignatureOnClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
     if (this.interactionOccurred) return;
-    if ((event.target as HTMLElement).closest('.signature-wrapper, .pdf-controls')) return;
+    if (target.closest('.signature-wrapper, .pdf-controls')) return;
+
+    if (!this.isPlacingSignature()) {
+      this.activeSignatureId.set(null);
+    }
 
     if (this.isPlacingSignature() && this.signatureDataUrl() && this.trimmedSignatureSize()) {
       const sizeInfo = this.trimmedSignatureSize()!;
@@ -778,17 +787,22 @@ export class AppComponent {
         aspectRatio: sizeInfo.aspectRatio,
       };
       this.placedSignatures.update(sigs => [...sigs, newSignature]);
-      this.activeSignatureId.set(newSignature.id);
     }
   }
 
-  selectSignature(signature: PlacedSignature, event: Event) {
+  selectSignature(signature: PlacedSignature, event: MouseEvent | TouchEvent) {
     event.stopPropagation();
+    if (event instanceof TouchEvent) {
+      event.preventDefault();
+    }
     this.activeSignatureId.set(signature.id);
   }
 
-  deleteSignature(idToDelete: number, event: MouseEvent) {
+  deleteSignature(idToDelete: number, event: MouseEvent | TouchEvent) {
     event.stopPropagation();
+    if (event instanceof TouchEvent) {
+      event.preventDefault();
+    }
     this.placedSignatures.update(sigs => sigs.filter(s => s.id !== idToDelete));
     if (this.activeSignatureId() === idToDelete) {
       this.activeSignatureId.set(null);
