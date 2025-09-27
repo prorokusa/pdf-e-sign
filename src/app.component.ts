@@ -917,9 +917,9 @@ export class AppComponent {
       if (!scrollParent) return;
 
       const rect = viewer.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      
+      const x = (event.pageX ?? event.clientX + window.scrollX) - rect.left;
+      const y = (event.pageY ?? event.clientY + window.scrollY) - rect.top;
+
       // Use the parent's scroll offsets for accurate positioning
       const finalX = x + scrollParent.scrollLeft;
       const finalY = y + scrollParent.scrollTop;
