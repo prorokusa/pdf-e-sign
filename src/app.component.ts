@@ -366,6 +366,7 @@ interface PlacedSignature {
     '(window:touchmove)': 'onDrag($event)',
     '(window:mouseup)': 'onEndInteraction($event)',
     '(window:touchend)': 'onEndInteraction($event)',
+    '(window:resize)': 'onWindowResize()',
   },
 })
 export class AppComponent {
@@ -433,6 +434,12 @@ export class AppComponent {
     effect(() => {
       if (this.isCropping() && this.croppingImageUrl()) {
         setTimeout(() => this.initCroppingCanvas(), 0);
+      }
+    });
+
+    effect(() => {
+      if (this.isSigning() && this.signatureMode() === 'draw') {
+        this.scheduleSignaturePadInit(true);
       }
     });
 
@@ -552,26 +559,74 @@ export class AppComponent {
 
   openSignatureModal() {
     this.isSigning.set(true);
-    setTimeout(() => this.initSignaturePad(), 0);
+    this.scheduleSignaturePadInit(false);
   }
   
   closeSignatureModal() {
     this.isSigning.set(false);
+    if (this.signaturePad?.off) {
+      this.signaturePad.off();
+    }
     this.signaturePad = null;
   }
 
-  initSignaturePad() {
-    if (this.signatureCanvas && this.signatureMode() === 'draw') {
-        const canvas = this.signatureCanvas.nativeElement;
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext('2d')?.scale(ratio, ratio);
-        this.signaturePad = new (window as any).SignaturePad(canvas, {
-          penColor: this.penColor(),
-          minWidth: 0.25,
-          maxWidth: this.penThickness(),
-        });
+  private scheduleSignaturePadInit(preserveExisting: boolean, attempt = 0) {
+    if (!this.isSigning() || this.signatureMode() !== 'draw') return;
+    requestAnimationFrame(() => {
+      const initialized = this.initSignaturePad(preserveExisting);
+      if (!initialized && attempt < 5) {
+        this.scheduleSignaturePadInit(preserveExisting, attempt + 1);
+      }
+    });
+  }
+
+  private initSignaturePad(preserveExisting: boolean): boolean {
+    if (!this.signatureCanvas || this.signatureMode() !== 'draw') return false;
+
+    const canvas = this.signatureCanvas.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return false;
+    }
+
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const existingData = preserveExisting && this.signaturePad ? this.signaturePad.toData() : [];
+
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return false;
+    }
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.scale(ratio, ratio);
+
+    if (this.signaturePad?.off) {
+      this.signaturePad.off();
+    }
+    this.signaturePad = new (window as any).SignaturePad(canvas, {
+      penColor: this.penColor(),
+      minWidth: 0.25,
+      maxWidth: this.penThickness(),
+    });
+
+    if (existingData && existingData.length) {
+      try {
+        this.signaturePad.fromData(existingData);
+      } catch (error) {
+        console.warn('Не удалось восстановить подпись после ресайза', error);
+      }
+    }
+
+    return true;
+  }
+
+  onWindowResize() {
+    if (this.isSigning() && this.signatureMode() === 'draw') {
+      this.scheduleSignaturePadInit(true);
     }
   }
 
