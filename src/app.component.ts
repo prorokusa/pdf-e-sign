@@ -512,24 +512,6 @@ export class AppComponent {
       }
     });
 
-    // Effect to update signature pad settings in real-time
-    effect(() => {
-        if (this.signaturePad) {
-            const color = this.penColor();
-            const width = this.penThickness();
-            const pad: any = this.signaturePad;
-            pad.penColor = color;
-            pad.minWidth = width;
-            pad.maxWidth = width;
-            pad.dotSize = width;
-            if (pad._ctx) {
-                pad._ctx.strokeStyle = color;
-                pad._ctx.fillStyle = color;
-                pad._ctx.lineWidth = width;
-            }
-        }
-    });
-
     effect(() => {
       // Re-render the PDF page whenever the current page number changes
       const pageNum = this.currentPage();
@@ -745,38 +727,15 @@ export class AppComponent {
       context.scale(ratio, ratio);
 
       this.signaturePad?.off?.();
-      const existingData = preserveExisting ? this.signaturePadData : [];
-
+      
       const pad = new (window as any).SignaturePad(canvas, {
         penColor: this.penColor(),
         minWidth: this.penThickness(),
         maxWidth: this.penThickness(),
       });
-      const color = this.penColor();
-      const width = this.penThickness();
-      pad.penColor = color;
-      pad.minWidth = width;
-      pad.maxWidth = width;
-      pad.dotSize = width;
-      if (pad._ctx) {
-        pad._ctx.strokeStyle = color;
-        pad._ctx.fillStyle = color;
-        pad._ctx.lineWidth = width;
-      }
-
+      
       pad.onEnd = () => {
         try {
-          const color = this.penColor();
-          const width = this.penThickness();
-          pad.penColor = color;
-          pad.minWidth = width;
-          pad.maxWidth = width;
-          pad.dotSize = width;
-          if (pad._ctx) {
-            pad._ctx.strokeStyle = color;
-            pad._ctx.fillStyle = color;
-            pad._ctx.lineWidth = width;
-          }
           this.signaturePadData = pad.toData();
         } catch (error) {
           console.warn('Не удалось сохранить данные подписи после рисования', error);
@@ -784,25 +743,11 @@ export class AppComponent {
         }
       };
 
-      pad.onBegin = () => {
-        const color = this.penColor();
-        const width = this.penThickness();
-        pad.penColor = color;
-        pad.minWidth = width;
-        pad.maxWidth = width;
-        pad.dotSize = width;
-        if (pad._ctx) {
-          pad._ctx.strokeStyle = color;
-          pad._ctx.fillStyle = color;
-          pad._ctx.lineWidth = width;
-        }
-      };
-
       this.signaturePad = pad;
 
-      if (preserveExisting && existingData && existingData.length) {
+      if (preserveExisting && this.signaturePadData && this.signaturePadData.length) {
         try {
-          this.signaturePad.fromData(existingData);
+          this.signaturePad.fromData(this.signaturePadData);
         } catch (error) {
           console.warn('Не удалось восстановить данные подписи', error);
         }
@@ -1181,11 +1126,28 @@ export class AppComponent {
   // --- Signature Settings Methods ---
   setPenColor(color: string) {
     this.penColor.set(color);
+    this.redrawSignatureWithCurrentSettings();
   }
 
   setPenThickness(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.penThickness.set(parseFloat(value));
+    this.redrawSignatureWithCurrentSettings();
+  }
+
+  private redrawSignatureWithCurrentSettings() {
+    if (this.signaturePad) {
+      const pad: any = this.signaturePad;
+      const newWidth = this.penThickness();
+      pad.penColor = this.penColor();
+      pad.minWidth = newWidth;
+      pad.maxWidth = newWidth;
+      
+      if (this.signaturePadData.length > 0) {
+        this.signaturePad.clear(); // Clear canvas
+        this.signaturePad.fromData(this.signaturePadData); // Redraw with new settings
+      }
+    }
   }
 
   // --- Cropping Logic ---
