@@ -94,22 +94,33 @@ interface PersistedState {
             @if (!signatureDataUrl()) {
               <button (click)="openSignatureModal()" class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 transition-colors">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.26 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"></path></svg>
-                <span>Создать подпись</span>
+               <span>Создать подпись</span>
               </button>
             } @else {
                <button (click)="openSignatureModal()" title="Изменить подпись" class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
                  <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
                  <span class="hidden sm:inline">Изменить</span>
                </button>
-               <button (click)="togglePlacementMode()" [class]="isPlacingSignature() ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'" class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md shadow-sm transition-colors" [title]="isPlacingSignature() ? 'Завершить размещение' : 'Начать размещение подписей'">
-                 @if (isPlacingSignature()) {
-                   <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                   <span class="hidden sm:inline">Готово</span>
-                 } @else {
-                   <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                   <span class="hidden sm:inline">Добавить</span>
+               <div class="relative">
+                 <button (click)="togglePlacementMode()" [class]="isPlacingSignature() ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'" class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md shadow-sm transition-colors" [title]="isPlacingSignature() ? 'Завершить размещение' : 'Начать размещение подписей'">
+                   @if (isPlacingSignature()) {
+                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                     <span class="hidden sm:inline">Готово</span>
+                   } @else {
+                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                     <span class="hidden sm:inline">Добавить</span>
+                   }
+                 </button>
+                 @if (showPlacementTooltip()) {
+                   <div class="pointer-events-none absolute right-0 z-50 mt-2 w-72 max-w-xs sm:max-w-sm">
+                     <div class="pointer-events-none relative rounded-xl border border-indigo-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-xl">
+                       <div class="pointer-events-none absolute -top-2 right-6 h-4 w-4 rotate-45 border-l border-t border-indigo-200 bg-white"></div>
+                       <p class="text-sm font-semibold text-indigo-600">«Готово» завершает размещение</p>
+                       <p class="mt-1 leading-snug text-gray-600">Нажмите кнопку, когда закончите, чтобы выключить режим и подписи не ставились случайно.</p>
+                     </div>
+                   </div>
                  }
-               </button>
+               </div>
             }
              <button (click)="applyAndDownload()" [disabled]="placedSignatures().length === 0" class="hidden md:flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md shadow-sm hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -168,14 +179,9 @@ interface PersistedState {
               }
             </div>
           </div>
-          @if (isPlacingSignature()) {
-          <div class="flex-shrink-0 p-2 text-center bg-indigo-100 text-indigo-800 text-sm font-medium animate-pulse">
-            Нажмите на документ, чтобы разместить подпись.
-          </div>
-          }
         </div>
       </div>
-       <!-- Mobile-only Page Navigation -->
+      <!-- Mobile-only Page Navigation -->
         @if (totalPages() > 1) {
             <div class="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex justify-center items-center gap-2 p-2 rounded-full bg-gray-900/60 backdrop-blur-sm shadow-xl">
                 <button (click)="goToPreviousPage()" [disabled]="currentPage() === 1" class="p-2 rounded-full text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
@@ -189,6 +195,24 @@ interface PersistedState {
         }
     }
   </main>
+
+  @if (isPlacingSignature()) {
+    <div class="pointer-events-none fixed inset-0 z-30 flex items-center justify-center px-4">
+      <div class="pointer-events-none max-w-xl w-full">
+        <div class="flex items-center gap-4 rounded-2xl bg-white/95 px-6 py-4 shadow-2xl ring-2 ring-indigo-500/70 backdrop-blur-sm">
+          <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600/90 text-white shadow-lg">
+            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l5.25 5.25m3-10.5a9 9 0 1 1-17.5 3" />
+            </svg>
+          </div>
+          <div class="space-y-1 text-gray-900">
+            <p class="text-lg font-semibold leading-snug">Нажмите в месте где необходимо разместить подпись, чтобы поставить подпись.</p>
+            <p class="text-sm text-gray-600">После размещения нажмите «Готово», чтобы отключить режим и избежать случайных кликов.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
 </div>
 
 @if (isSigning()) {
@@ -465,6 +489,7 @@ export class AppComponent {
   croppingImageUrl = signal<string | null>(null);
   isHelpVisible = signal<boolean>(false);
   isPlacingSignature = signal<boolean>(false);
+  showPlacementTooltip = signal<boolean>(false);
   
   // --- Signature Settings Signals ---
   penColor = signal<string>('rgb(79, 70, 229)'); // Default Indigo
@@ -493,6 +518,9 @@ export class AppComponent {
   private persistTimeoutId: number | null = null;
   private isRestoringState = true;
   private signaturePadData: any[] = [];
+  private hasShownPlacementTooltip = false;
+  private tooltipTimeoutId: number | null = null;
+  private lastSignatureCount = 0;
   
   // --- PDF.js Configuration ---
   private static pdfJsInitPromise: Promise<void> | null = null;
@@ -558,6 +586,28 @@ export class AppComponent {
         trimmedSignatureSize: this.trimmedSignatureSize(),
         placedSignatures: this.placedSignatures(),
       });
+    });
+
+    effect(() => {
+      const count = this.placedSignatures().length;
+      const previousCount = this.lastSignatureCount;
+      this.lastSignatureCount = count;
+
+      if (
+        !this.isRestoringState &&
+        this.isPlacingSignature() &&
+        count > previousCount &&
+        previousCount === 0 &&
+        !this.hasShownPlacementTooltip
+      ) {
+        this.triggerPlacementTooltip();
+      }
+    });
+
+    effect(() => {
+      if (!this.isPlacingSignature()) {
+        this.hidePlacementTooltip();
+      }
     });
 
     if (typeof queueMicrotask === 'function') {
@@ -1398,6 +1448,9 @@ export class AppComponent {
     this.signaturePadData = [];
     this.activeSignatureId.set(null);
     this.isPlacingSignature.set(false);
+    this.hidePlacementTooltip();
+    this.hasShownPlacementTooltip = false;
+    this.lastSignatureCount = 0;
     this.isSigning.set(false);
     this.isCropping.set(false);
     this.croppingImageUrl.set(null);
@@ -1621,12 +1674,39 @@ export class AppComponent {
     return bytes.buffer;
   }
 
+  private triggerPlacementTooltip() {
+    if (this.hasShownPlacementTooltip) {
+      return;
+    }
+    this.showPlacementTooltip.set(true);
+    this.hasShownPlacementTooltip = true;
+    if (typeof window !== 'undefined') {
+      if (this.tooltipTimeoutId !== null) {
+        window.clearTimeout(this.tooltipTimeoutId);
+      }
+      this.tooltipTimeoutId = window.setTimeout(() => {
+        this.showPlacementTooltip.set(false);
+        this.tooltipTimeoutId = null;
+      }, 6000);
+    }
+  }
+
+  private hidePlacementTooltip() {
+    this.showPlacementTooltip.set(false);
+    if (typeof window !== 'undefined' && this.tooltipTimeoutId !== null) {
+      window.clearTimeout(this.tooltipTimeoutId);
+      this.tooltipTimeoutId = null;
+    }
+  }
+
   togglePlacementMode() {
     if (this.signatureDataUrl()) {
       this.isPlacingSignature.update(v => {
         const next = !v;
         if (next) {
           this.activeSignatureId.set(null);
+        } else {
+          this.hidePlacementTooltip();
         }
         return next;
       });
