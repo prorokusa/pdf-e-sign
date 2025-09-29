@@ -203,7 +203,7 @@ interface PersistedState {
                          [style.width.px]="preview.width"
                          [style.height.px]="preview.height">
                       @if (showPlacementCaption()) {
-                      <div class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
+                      <div class="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
                         УКАЖИТЕ МЕСТО ДЛЯ ПОДПИСИ
                       </div>
                       }
