@@ -202,6 +202,9 @@ interface PersistedState {
                     <div class="pointer-events-none relative"
                          [style.width.px]="preview.width"
                          [style.height.px]="preview.height">
+                      @if (isTouchDevice && showTouchHint()) {
+                      <div class="pointer-events-none absolute -inset-4 rounded-2xl border border-indigo-400/40 bg-indigo-100/25 shadow-[0_0_25px_rgba(79,70,229,0.35)] animate-pulse"></div>
+                      }
                       @if (showPlacementCaption()) {
                       <div class="pointer-events-none absolute -top-[3.75rem] left-1/2 -translate-x-1/2 rounded-full bg-indigo-600/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
                         УКАЖИТЕ МЕСТО ДЛЯ ПОДПИСИ
@@ -210,6 +213,18 @@ interface PersistedState {
                       <div class="pointer-events-none absolute inset-0 rounded-xl border-2 border-dashed border-indigo-400/70 bg-white/60 shadow-xl backdrop-blur-[2px]">
                         <img [src]="signatureDataUrl()" alt="Превью подписи" class="h-full w-full object-contain opacity-70 mix-blend-multiply">
                       </div>
+                      @if (isTouchDevice && showTouchHint()) {
+                      <div class="pointer-events-none absolute left-1/2 top-full mt-4 flex -translate-x-1/2 flex-col items-center gap-2 text-center">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg animate-bounce">
+                          <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-6m0 0a2 2 0 1 0-2-2m2 2h6m-6 0H6m6 8a8 8 0 1 0 0-16" />
+                          </svg>
+                        </div>
+                        <p class="max-w-[12rem] text-xs font-semibold leading-snug text-indigo-700">
+                          Коснитесь нужной точки на документе — подпись переместится туда.
+                        </p>
+                      </div>
+                      }
                     </div>
                   </div>
                 }
@@ -511,6 +526,7 @@ export class AppComponent {
   showPlacementTooltip = signal<boolean>(false);
   placementPreview = signal<PlacementPreviewData | null>(null);
   showPlacementCaption = signal<boolean>(true);
+  showTouchHint = signal<boolean>(false);
   
   // --- Signature Settings Signals ---
   penColor = signal<string>('rgb(79, 70, 229)'); // Default Indigo
@@ -541,12 +557,16 @@ export class AppComponent {
   private signaturePadData: any[] = [];
   private hasShownPlacementTooltip = false;
   private tooltipTimeoutId: number | null = null;
+  readonly isTouchDevice: boolean;
+  private touchPreviewSeeded = false;
   
   // --- PDF.js Configuration ---
   private static pdfJsInitPromise: Promise<void> | null = null;
   private readonly pdfRenderScale = 1.5;
 
   constructor() {
+    this.isTouchDevice = this.detectTouchDevice();
+
     effect(() => {
       const pdf = this.pdfFile();
       if (pdf) {
@@ -618,6 +638,8 @@ export class AppComponent {
       if (!this.isPlacingSignature()) {
         this.hidePlacementTooltip();
         this.clearPlacementPreview();
+        this.showTouchHint.set(false);
+        this.touchPreviewSeeded = false;
       }
     });
 
@@ -630,6 +652,18 @@ export class AppComponent {
     effect(() => {
       if (this.isPlacingSignature() && this.placedSignatures().length > 0) {
         this.triggerPlacementTooltip(true);
+      }
+    });
+
+    effect(() => {
+      if (
+        this.isTouchDevice &&
+        this.isPlacingSignature() &&
+        this.signatureDataUrl() &&
+        !this.placementPreview() &&
+        !this.touchPreviewSeeded
+      ) {
+        this.seedTouchPreview();
       }
     });
 
@@ -952,8 +986,12 @@ export class AppComponent {
       });
       
       this.isPlacingSignature.set(true);
+      this.touchPreviewSeeded = false;
       this.clearPlacementPreview();
       this.showPlacementCaption.set(this.placedSignatures().length === 0);
+      if (!this.isTouchDevice) {
+        this.showTouchHint.set(false);
+      }
 
       this.placedSignatures.update(sigs => 
         sigs.map(s => ({
@@ -999,6 +1037,10 @@ export class AppComponent {
     };
     this.placedSignatures.update(sigs => [...sigs, newSignature]);
     this.showPlacementCaption.set(false);
+    if (this.isTouchDevice) {
+      this.showTouchHint.set(false);
+    }
+    this.clearPlacementPreview();
   }
 
   updatePlacementPreview(event: MouseEvent | TouchEvent) {
@@ -1018,6 +1060,9 @@ export class AppComponent {
     const placement = this.computePlacementForViewer(viewer, event, sizeInfo.aspectRatio);
     if (placement) {
       this.placementPreview.set(placement);
+      if (this.isTouchDevice && 'touches' in event) {
+        this.showTouchHint.set(false);
+      }
     } else {
       this.clearPlacementPreview();
     }
@@ -1481,6 +1526,8 @@ export class AppComponent {
     this.hasShownPlacementTooltip = false;
     this.clearPlacementPreview();
     this.showPlacementCaption.set(true);
+    this.touchPreviewSeeded = false;
+    this.showTouchHint.set(false);
     this.isSigning.set(false);
     this.isCropping.set(false);
     this.croppingImageUrl.set(null);
@@ -1739,6 +1786,54 @@ export class AppComponent {
     }
   }
 
+  private seedTouchPreview() {
+    if (!this.pdfCanvas || !this.trimmedSignatureSize()) {
+      return;
+    }
+    const aspect = this.trimmedSignatureSize()!.aspectRatio;
+    if (!aspect) {
+      return;
+    }
+
+    const canvasElement = this.pdfCanvas.nativeElement;
+    const viewer = canvasElement.parentElement as HTMLElement | null;
+    if (!viewer) {
+      return;
+    }
+    const scrollParent = viewer.parentElement;
+
+    const defaultWidth = canvasElement.offsetWidth * 0.15;
+    if (!defaultWidth) {
+      return;
+    }
+    const defaultHeight = defaultWidth / aspect;
+
+    const centerX = (canvasElement.offsetWidth - defaultWidth) / 2;
+    const baseY = canvasElement.offsetHeight * 0.35 - defaultHeight / 2;
+
+    const finalX = (scrollParent?.scrollLeft ?? 0) + Math.max(centerX, 0);
+    const finalY = (scrollParent?.scrollTop ?? 0) + Math.max(baseY, 24);
+
+    this.placementPreview.set({
+      position: { x: finalX, y: finalY },
+      width: defaultWidth,
+      height: defaultHeight,
+    });
+    this.showPlacementCaption.set(true);
+    this.showTouchHint.set(true);
+    this.touchPreviewSeeded = true;
+  }
+
+  private detectTouchDevice(): boolean {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+    const maxPoints = nav?.maxTouchPoints ?? 0;
+    const legacyPoints = (nav as any)?.msMaxTouchPoints ?? 0;
+    return 'ontouchstart' in window || maxPoints > 0 || legacyPoints > 0;
+  }
+
   private computePlacementForViewer(
     viewer: HTMLElement,
     event: MouseEvent | TouchEvent,
@@ -1827,11 +1922,17 @@ export class AppComponent {
         if (next) {
           this.activeSignatureId.set(null);
           this.clearPlacementPreview();
+          this.touchPreviewSeeded = false;
+          if (this.isTouchDevice) {
+            this.showTouchHint.set(true);
+          }
           if (this.placedSignatures().length === 0) {
             this.showPlacementCaption.set(true);
           }
         } else {
           this.hidePlacementTooltip();
+          this.touchPreviewSeeded = false;
+          this.showTouchHint.set(false);
         }
         return next;
       });
