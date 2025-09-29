@@ -23,6 +23,12 @@ interface PlacedSignature {
   aspectRatio: number;
 }
 
+interface PlacementPreviewData {
+  position: Position;
+  width: number;
+  height: number;
+}
+
 interface PersistedState {
   fileName: string;
   signatureDataUrl: string | null;
@@ -166,7 +172,16 @@ interface PersistedState {
       <div class="container mx-auto h-full py-4 lg:py-6">
         <div class="h-full flex flex-col bg-white rounded-2xl shadow-lg overflow-hidden">
           <div class="flex-grow p-2 bg-gray-100 overflow-auto relative">
-            <div id="pdf-viewer" (click)="placeSignatureOnClick($event)" [class.cursor-copy]="isPlacingSignature()">
+            <div
+              id="pdf-viewer"
+              (click)="placeSignatureOnClick($event)"
+              (mousemove)="updatePlacementPreview($event)"
+              (mouseleave)="clearPlacementPreview()"
+              (touchstart)="updatePlacementPreview($event)"
+              (touchmove)="updatePlacementPreview($event)"
+              (touchend)="clearPlacementPreview()"
+              [class.cursor-copy]="isPlacingSignature()"
+            >
               <canvas #pdfCanvas id="pdf-canvas" class="rounded-lg shadow-xl"></canvas>
               @for (sig of placedSignatures(); track sig.id) {
               @if (sig.page === currentPage()) {
@@ -176,6 +191,26 @@ interface PersistedState {
                 <div class="resize-handle" (mousedown)="resizeStart($event, sig)" (touchstart)="resizeStart($event, sig)"></div>
               </div>
               }
+              }
+              @if (isPlacingSignature() && signatureDataUrl() && placementPreview() as preview) {
+                <div
+                  class="absolute pointer-events-none"
+                  [style.left.px]="preview.position.x"
+                  [style.top.px]="preview.position.y"
+                >
+                  <div class="pointer-events-none relative"
+                       [style.width.px]="preview.width"
+                       [style.height.px]="preview.height">
+                    @if (showPlacementCaption()) {
+                    <div class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
+                      УКАЖИТЕ МЕСТО ДЛЯ ПОДПИСИ
+                    </div>
+                    }
+                    <div class="pointer-events-none absolute inset-0 rounded-xl border-2 border-dashed border-indigo-400/70 bg-white/60 shadow-xl backdrop-blur-[2px]">
+                      <img [src]="signatureDataUrl()" alt="Превью подписи" class="h-full w-full object-contain opacity-70 mix-blend-multiply">
+                    </div>
+                  </div>
+                </div>
               }
             </div>
           </div>
@@ -195,24 +230,6 @@ interface PersistedState {
         }
     }
   </main>
-
-  @if (isPlacingSignature()) {
-    <div class="pointer-events-none fixed inset-0 z-30 flex items-center justify-center px-4">
-      <div class="pointer-events-none max-w-xl w-full">
-        <div class="flex items-center gap-4 rounded-2xl bg-white/95 px-6 py-4 shadow-2xl ring-2 ring-indigo-500/70 backdrop-blur-sm">
-          <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600/90 text-white shadow-lg">
-            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l5.25 5.25m3-10.5a9 9 0 1 1-17.5 3" />
-            </svg>
-          </div>
-          <div class="space-y-1 text-gray-900">
-            <p class="text-lg font-semibold leading-snug">Нажмите в месте где необходимо разместить подпись, чтобы поставить подпись.</p>
-            <p class="text-sm text-gray-600">После размещения нажмите «Готово», чтобы отключить режим и избежать случайных кликов.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  }
 </div>
 
 @if (isSigning()) {
@@ -490,6 +507,8 @@ export class AppComponent {
   isHelpVisible = signal<boolean>(false);
   isPlacingSignature = signal<boolean>(false);
   showPlacementTooltip = signal<boolean>(false);
+  placementPreview = signal<PlacementPreviewData | null>(null);
+  showPlacementCaption = signal<boolean>(true);
   
   // --- Signature Settings Signals ---
   penColor = signal<string>('rgb(79, 70, 229)'); // Default Indigo
@@ -520,7 +539,6 @@ export class AppComponent {
   private signaturePadData: any[] = [];
   private hasShownPlacementTooltip = false;
   private tooltipTimeoutId: number | null = null;
-  private lastSignatureCount = 0;
   
   // --- PDF.js Configuration ---
   private static pdfJsInitPromise: Promise<void> | null = null;
@@ -589,24 +607,27 @@ export class AppComponent {
     });
 
     effect(() => {
-      const count = this.placedSignatures().length;
-      const previousCount = this.lastSignatureCount;
-      this.lastSignatureCount = count;
-
-      if (
-        !this.isRestoringState &&
-        this.isPlacingSignature() &&
-        count > previousCount &&
-        previousCount === 0 &&
-        !this.hasShownPlacementTooltip
-      ) {
-        this.triggerPlacementTooltip();
+      if (this.placedSignatures().length > 0) {
+        this.showPlacementCaption.set(false);
       }
     });
 
     effect(() => {
       if (!this.isPlacingSignature()) {
         this.hidePlacementTooltip();
+        this.clearPlacementPreview();
+      }
+    });
+
+    effect(() => {
+      if (!this.signatureDataUrl()) {
+        this.clearPlacementPreview();
+      }
+    });
+
+    effect(() => {
+      if (this.isPlacingSignature() && this.placedSignatures().length > 0) {
+        this.triggerPlacementTooltip(true);
       }
     });
 
@@ -929,6 +950,8 @@ export class AppComponent {
       });
       
       this.isPlacingSignature.set(true);
+      this.clearPlacementPreview();
+      this.showPlacementCaption.set(this.placedSignatures().length === 0);
 
       this.placedSignatures.update(sigs => 
         sigs.map(s => ({
@@ -946,56 +969,60 @@ export class AppComponent {
 
     if (!this.isPlacingSignature()) {
       this.activeSignatureId.set(null);
+      return;
     }
 
-    if (this.isPlacingSignature() && this.signatureDataUrl() && this.trimmedSignatureSize()) {
-      const sizeInfo = this.trimmedSignatureSize()!;
-      
-      const canvasElement = this.pdfCanvas.nativeElement;
-      const defaultWidth = canvasElement.offsetWidth * 0.15;
-      const defaultHeight = defaultWidth / sizeInfo.aspectRatio;
-
-      const viewer = event.currentTarget as HTMLElement;
-      const scrollParent = viewer.parentElement;
-
-      if (!scrollParent) return;
-
-      const rect = viewer.getBoundingClientRect();
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.maxTouchPoints === undefined;
-      const isTablet = isTouchDevice && window.innerWidth >= 768;
-      const visualOffsetX = window.visualViewport?.offsetLeft ?? 0;
-      const visualOffsetY = window.visualViewport?.offsetTop ?? 0;
-
-      const baseX = event.pageX ?? (event.clientX + window.pageXOffset);
-      const baseY = event.pageY ?? (event.clientY + window.pageYOffset);
-
-      let x = baseX - rect.left;
-      let y = baseY - rect.top;
-
-      if (isTablet) {
-        const layoutOffsetLeft = rect.left + window.pageXOffset;
-        const layoutOffsetTop = rect.top + window.pageYOffset;
-        x = baseX - layoutOffsetLeft;
-        y = baseY - layoutOffsetTop;
-      } else if (!isTouchDevice) {
-        x += visualOffsetX;
-        y += visualOffsetY;
-      }
-
-      // Use the parent's scroll offsets for accurate positioning
-      const finalX = x + scrollParent.scrollLeft;
-      const finalY = y + scrollParent.scrollTop;
-
-      const newSignature: PlacedSignature = {
-        id: Date.now(),
-        page: this.currentPage(),
-        position: { x: finalX - defaultWidth / 2, y: finalY - defaultHeight / 2 },
-        width: defaultWidth,
-        height: defaultHeight,
-        aspectRatio: sizeInfo.aspectRatio,
-      };
-      this.placedSignatures.update(sigs => [...sigs, newSignature]);
+    const sizeInfo = this.trimmedSignatureSize();
+    if (!this.signatureDataUrl() || !sizeInfo) {
+      return;
     }
+
+    const viewer = event.currentTarget as HTMLElement | null;
+    if (!viewer) {
+      return;
+    }
+
+    const placement = this.computePlacementForViewer(viewer, event, sizeInfo.aspectRatio);
+    if (!placement) {
+      return;
+    }
+
+    const newSignature: PlacedSignature = {
+      id: Date.now(),
+      page: this.currentPage(),
+      position: placement.position,
+      width: placement.width,
+      height: placement.height,
+      aspectRatio: sizeInfo.aspectRatio,
+    };
+    this.placedSignatures.update(sigs => [...sigs, newSignature]);
+    this.showPlacementCaption.set(false);
+  }
+
+  updatePlacementPreview(event: MouseEvent | TouchEvent) {
+    if (!this.isPlacingSignature() || !this.signatureDataUrl()) {
+      return;
+    }
+    const sizeInfo = this.trimmedSignatureSize();
+    if (!sizeInfo) {
+      return;
+    }
+
+    const viewer = event.currentTarget as HTMLElement | null;
+    if (!viewer) {
+      return;
+    }
+
+    const placement = this.computePlacementForViewer(viewer, event, sizeInfo.aspectRatio);
+    if (placement) {
+      this.placementPreview.set(placement);
+    } else {
+      this.clearPlacementPreview();
+    }
+  }
+
+  clearPlacementPreview() {
+    this.placementPreview.set(null);
   }
 
   selectSignature(signature: PlacedSignature, event: MouseEvent | TouchEvent) {
@@ -1450,7 +1477,8 @@ export class AppComponent {
     this.isPlacingSignature.set(false);
     this.hidePlacementTooltip();
     this.hasShownPlacementTooltip = false;
-    this.lastSignatureCount = 0;
+    this.clearPlacementPreview();
+    this.showPlacementCaption.set(true);
     this.isSigning.set(false);
     this.isCropping.set(false);
     this.croppingImageUrl.set(null);
@@ -1674,7 +1702,17 @@ export class AppComponent {
     return bytes.buffer;
   }
 
-  private triggerPlacementTooltip() {
+  private triggerPlacementTooltip(persistent = false) {
+    if (persistent) {
+      this.showPlacementTooltip.set(true);
+      this.hasShownPlacementTooltip = true;
+      if (typeof window !== 'undefined' && this.tooltipTimeoutId !== null) {
+        window.clearTimeout(this.tooltipTimeoutId);
+        this.tooltipTimeoutId = null;
+      }
+      return;
+    }
+
     if (this.hasShownPlacementTooltip) {
       return;
     }
@@ -1699,12 +1737,97 @@ export class AppComponent {
     }
   }
 
+  private computePlacementForViewer(
+    viewer: HTMLElement,
+    event: MouseEvent | TouchEvent,
+    aspectRatio: number
+  ): PlacementPreviewData | null {
+    if (!this.pdfCanvas) {
+      return null;
+    }
+
+    const canvasElement = this.pdfCanvas.nativeElement;
+    const defaultWidth = canvasElement.offsetWidth * 0.15;
+    if (!defaultWidth) {
+      return null;
+    }
+    const defaultHeight = defaultWidth / aspectRatio;
+
+    const scrollParent = viewer.parentElement;
+    if (!scrollParent) {
+      return null;
+    }
+
+    const coords = this.getPageCoordinates(event);
+    if (!coords) {
+      return null;
+    }
+
+    const rect = viewer.getBoundingClientRect();
+    const isTouchDevice =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.maxTouchPoints === undefined);
+    const isTablet = isTouchDevice && typeof window !== 'undefined' && window.innerWidth >= 768;
+    const visualOffsetX = typeof window !== 'undefined' ? window.visualViewport?.offsetLeft ?? 0 : 0;
+    const visualOffsetY = typeof window !== 'undefined' ? window.visualViewport?.offsetTop ?? 0 : 0;
+
+    let x = coords.pageX - rect.left;
+    let y = coords.pageY - rect.top;
+
+    if (isTablet) {
+      const layoutOffsetLeft = rect.left + window.pageXOffset;
+      const layoutOffsetTop = rect.top + window.pageYOffset;
+      x = coords.pageX - layoutOffsetLeft;
+      y = coords.pageY - layoutOffsetTop;
+    } else if (!isTouchDevice) {
+      x += visualOffsetX;
+      y += visualOffsetY;
+    }
+
+    const finalX = x + scrollParent.scrollLeft;
+    const finalY = y + scrollParent.scrollTop;
+
+    return {
+      position: {
+        x: finalX - defaultWidth / 2,
+        y: finalY - defaultHeight / 2,
+      },
+      width: defaultWidth,
+      height: defaultHeight,
+    };
+  }
+
+  private getPageCoordinates(event: MouseEvent | TouchEvent): { pageX: number; pageY: number } | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    if ('touches' in event) {
+      const touch = event.touches?.[0] ?? event.changedTouches?.[0] ?? null;
+      if (!touch) {
+        return null;
+      }
+      const pageX = touch.pageX ?? touch.clientX + window.pageXOffset;
+      const pageY = touch.pageY ?? touch.clientY + window.pageYOffset;
+      return { pageX, pageY };
+    }
+
+    const mouseEvent = event as MouseEvent;
+    const pageX = mouseEvent.pageX ?? mouseEvent.clientX + window.pageXOffset;
+    const pageY = mouseEvent.pageY ?? mouseEvent.clientY + window.pageYOffset;
+    return { pageX, pageY };
+  }
+
   togglePlacementMode() {
     if (this.signatureDataUrl()) {
       this.isPlacingSignature.update(v => {
         const next = !v;
         if (next) {
           this.activeSignatureId.set(null);
+          this.clearPlacementPreview();
+          if (this.placedSignatures().length === 0) {
+            this.showPlacementCaption.set(true);
+          }
         } else {
           this.hidePlacementTooltip();
         }
