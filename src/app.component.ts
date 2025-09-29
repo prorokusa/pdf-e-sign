@@ -192,25 +192,27 @@ interface PersistedState {
               </div>
               }
               }
-              @if (isPlacingSignature() && signatureDataUrl() && placementPreview() as preview) {
-                <div
-                  class="absolute pointer-events-none"
-                  [style.left.px]="preview.position.x"
-                  [style.top.px]="preview.position.y"
-                >
-                  <div class="pointer-events-none relative"
-                       [style.width.px]="preview.width"
-                       [style.height.px]="preview.height">
-                    @if (showPlacementCaption()) {
-                    <div class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
-                      УКАЖИТЕ МЕСТО ДЛЯ ПОДПИСИ
-                    </div>
-                    }
-                    <div class="pointer-events-none absolute inset-0 rounded-xl border-2 border-dashed border-indigo-400/70 bg-white/60 shadow-xl backdrop-blur-[2px]">
-                      <img [src]="signatureDataUrl()" alt="Превью подписи" class="h-full w-full object-contain opacity-70 mix-blend-multiply">
+              @if (isPlacingSignature() && signatureDataUrl()) {
+                @if (placementPreview(); as preview) {
+                  <div
+                    class="absolute pointer-events-none"
+                    [style.left.px]="preview.position.x"
+                    [style.top.px]="preview.position.y"
+                  >
+                    <div class="pointer-events-none relative"
+                         [style.width.px]="preview.width"
+                         [style.height.px]="preview.height">
+                      @if (showPlacementCaption()) {
+                      <div class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
+                        УКАЖИТЕ МЕСТО ДЛЯ ПОДПИСИ
+                      </div>
+                      }
+                      <div class="pointer-events-none absolute inset-0 rounded-xl border-2 border-dashed border-indigo-400/70 bg-white/60 shadow-xl backdrop-blur-[2px]">
+                        <img [src]="signatureDataUrl()" alt="Превью подписи" class="h-full w-full object-contain opacity-70 mix-blend-multiply">
+                      </div>
                     </div>
                   </div>
-                </div>
+                }
               }
             </div>
           </div>
